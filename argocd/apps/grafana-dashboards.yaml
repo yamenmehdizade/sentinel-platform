@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana-dashboards
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/yamenmehdizade/sentinel-platform.git
+    targetRevision: main
+    path: platform/grafana
+    directory:
+      include: 'dashboards-cm.yaml'
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

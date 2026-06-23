@@ -1,0 +1,48 @@
+admin:
+  existingSecret: grafana-admin
+  userKey: admin-user
+  passwordKey: admin-password
+
+persistence:
+  enabled: false
+
+plugins:
+  - grafana-clickhouse-datasource
+
+service:
+  type: NodePort
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: ClickHouse
+        uid: clickhouse
+        type: grafana-clickhouse-datasource
+        access: proxy
+        jsonData:
+          host: clickhouse-sentinel.data.svc.cluster.local
+          port: 9000
+          protocol: native
+          username: admin
+        secureJsonData:
+          password: ${CLICKHOUSE_PASSWORD}
+
+envValueFrom:
+  CLICKHOUSE_PASSWORD:
+    secretKeyRef:
+      name: grafana-admin
+      key: admin-password
+
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: sentinel
+        folder: Sentinel
+        type: file
+        options:
+          path: /var/lib/grafana/dashboards/sentinel
+
+dashboardsConfigMaps:
+  sentinel: grafana-dashboards

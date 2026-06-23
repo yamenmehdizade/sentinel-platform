@@ -24,7 +24,7 @@
     {
       "datasource": {
         "type": "grafana-clickhouse-datasource",
-        "uid": "efpm0350qnh1ce"
+        "uid": "clickhouse"
       },
       "fieldConfig": {
         "defaults": {
@@ -105,7 +105,7 @@
     {
       "datasource": {
         "type": "grafana-clickhouse-datasource",
-        "uid": "${DS_CLICKHOUSE}"
+        "uid": "clickhouse"
       },
       "fieldConfig": {
         "defaults": {
@@ -197,46 +197,19 @@
     {
       "datasource": {
         "type": "grafana-clickhouse-datasource",
-        "uid": "efpm0350qnh1ce"
+        "uid": "clickhouse"
       },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
           "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
+            "align": "auto",
+            "cellOptions": {
+              "type": "color-text"
             },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
+            "footer": {
+              "reducers": []
             },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "inspect": false
           },
           "mappings": [],
           "thresholds": {
@@ -247,12 +220,15 @@
                 "value": 0
               },
               {
+                "color": "#EAB839",
+                "value": 40
+              },
+              {
                 "color": "red",
-                "value": 80
+                "value": 70
               }
             ]
-          },
-          "unit": "bytes"
+          }
         },
         "overrides": []
       },
@@ -262,19 +238,16 @@
         "x": 0,
         "y": 8
       },
-      "id": 10,
+      "id": 12,
       "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
+        "cellHeight": "sm",
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "risk_score"
+          }
+        ]
       },
       "pluginVersion": "12.3.1",
       "targets": [
@@ -293,17 +266,17 @@
           },
           "pluginVersion": "4.18.0",
           "queryType": "table",
-          "rawSql": "SELECT \r\n    toStartOfMinute(event_time) AS time,\r\n    sum(bytes) AS bytes_per_min\r\nFROM sentinel.firewall_events\r\nGROUP BY time\r\nORDER BY time",
+          "rawSql": "SELECT \r\n    src_ip,\r\n    arrayStringConcat(arrayMap(x -> toString(x), groupUniqArray(dst_port)), ', ') AS ports,\r\n    uniq(dst_ip) AS targets,\r\n    count() AS events,\r\n    multiIf(\r\n        has(groupUniqArray(dst_port), 445) OR has(groupUniqArray(dst_port), 139), 80,\r\n        has(groupUniqArray(dst_port), 3389) OR has(groupUniqArray(dst_port), 23), 70,\r\n        has(groupUniqArray(dst_port), 22), 40,\r\n        uniq(dst_port) >= 20, 50,\r\n        0\r\n    ) AS risk_score\r\nFROM sentinel.firewall_events\r\nWHERE $__timeFilter(event_time)\r\n  AND match(src_ip, '$src_ip')\r\nGROUP BY src_ip\r\nHAVING risk_score >= 40\r\nORDER BY risk_score DESC\r\nLIMIT 20",
           "refId": "A"
         }
       ],
-      "title": "Bandwidth Over Time",
-      "type": "timeseries"
+      "title": "Risk Engine",
+      "type": "table"
     },
     {
       "datasource": {
         "type": "grafana-clickhouse-datasource",
-        "uid": "${DS_CLICKHOUSE}"
+        "uid": "clickhouse"
       },
       "fieldConfig": {
         "defaults": {
@@ -399,7 +372,7 @@
     {
       "datasource": {
         "type": "grafana-clickhouse-datasource",
-        "uid": "efpm0350qnh1ce"
+        "uid": "clickhouse"
       },
       "fieldConfig": {
         "defaults": {
@@ -412,16 +385,29 @@
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
-            "fillOpacity": 80,
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
             "lineWidth": 1,
+            "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
             },
             "thresholdsStyle": {
               "mode": "off"
@@ -451,28 +437,19 @@
         "x": 0,
         "y": 16
       },
-      "id": 9,
+      "id": 10,
       "options": {
-        "barRadius": 0,
-        "barWidth": 0.97,
-        "fullHighlight": false,
-        "groupWidth": 0.7,
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "right",
+          "placement": "bottom",
           "showLegend": true
         },
-        "orientation": "horizontal",
-        "showValue": "never",
-        "stacking": "none",
         "tooltip": {
           "hideZeros": false,
           "mode": "single",
           "sort": "none"
-        },
-        "xTickLabelRotation": 0,
-        "xTickLabelSpacing": 0
+        }
       },
       "pluginVersion": "12.3.1",
       "targets": [
@@ -491,17 +468,17 @@
           },
           "pluginVersion": "4.18.0",
           "queryType": "table",
-          "rawSql": "SELECT \r\n    src_ip,\r\n    sum(bytes) AS total_bytes\r\nFROM sentinel.firewall_events\r\nWHERE $__timeFilter(event_time)\r\nGROUP BY src_ip\r\nORDER BY total_bytes DESC\r\nLIMIT 10",
+          "rawSql": "SELECT \r\n    toStartOfMinute(event_time) AS time,\r\n    sum(bytes) AS bytes_per_min\r\nFROM sentinel.firewall_events\r\nGROUP BY time\r\nORDER BY time",
           "refId": "A"
         }
       ],
-      "title": "Top Talkers",
-      "type": "barchart"
+      "title": "Bandwidth Over Time",
+      "type": "timeseries"
     },
     {
       "datasource": {
         "type": "grafana-clickhouse-datasource",
-        "uid": "${DS_CLICKHOUSE}"
+        "uid": "clickhouse"
       },
       "fieldConfig": {
         "defaults": {
@@ -594,7 +571,109 @@
     {
       "datasource": {
         "type": "grafana-clickhouse-datasource",
-        "uid": "efpm0350qnh1ce"
+        "uid": "clickhouse"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "id": 9,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true
+        },
+        "orientation": "horizontal",
+        "showValue": "never",
+        "stacking": "none",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "editorType": "sql",
+          "format": 1,
+          "meta": {
+            "builderOptions": {
+              "columns": [],
+              "database": "",
+              "limit": 1000,
+              "mode": "list",
+              "queryType": "table",
+              "table": ""
+            }
+          },
+          "pluginVersion": "4.18.0",
+          "queryType": "table",
+          "rawSql": "SELECT \r\n    src_ip,\r\n    sum(bytes) AS total_bytes\r\nFROM sentinel.firewall_events\r\nWHERE $__timeFilter(event_time)\r\nGROUP BY src_ip\r\nORDER BY total_bytes DESC\r\nLIMIT 10",
+          "refId": "A"
+        }
+      ],
+      "title": "Top Talkers",
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
       },
       "fieldConfig": {
         "defaults": {
@@ -616,7 +695,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 24
+        "y": 32
       },
       "id": 8,
       "options": {
@@ -672,7 +751,7 @@
     {
       "datasource": {
         "type": "grafana-clickhouse-datasource",
-        "uid": "${DS_CLICKHOUSE}"
+        "uid": "clickhouse"
       },
       "fieldConfig": {
         "defaults": {
@@ -697,7 +776,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 32
+        "y": 40
       },
       "id": 1,
       "options": {
@@ -735,7 +814,7 @@
     {
       "datasource": {
         "type": "grafana-clickhouse-datasource",
-        "uid": "${DS_CLICKHOUSE}"
+        "uid": "clickhouse"
       },
       "fieldConfig": {
         "defaults": {
@@ -757,7 +836,7 @@
         "h": 8,
         "w": 6,
         "x": 6,
-        "y": 32
+        "y": 40
       },
       "id": 2,
       "options": {
@@ -796,7 +875,7 @@
     {
       "datasource": {
         "type": "grafana-clickhouse-datasource",
-        "uid": "${DS_CLICKHOUSE}"
+        "uid": "clickhouse"
       },
       "fieldConfig": {
         "defaults": {
@@ -845,7 +924,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 40
+        "y": 48
       },
       "id": 4,
       "options": {
@@ -899,7 +978,7 @@
       {
         "current": {
           "text": "grafana-clickhouse-datasource",
-          "value": "efpm0350qnh1ce"
+          "value": "clickhouse"
         },
         "label": "ClickHouse Datasource",
         "name": "DS_CLICKHOUSE",
@@ -934,5 +1013,5 @@
   "timezone": "",
   "title": "Sentinel — Firewall Overview",
   "uid": "sentinel-fw-overview",
-  "version": 27
+  "version": 29
 }
