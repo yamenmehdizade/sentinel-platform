@@ -27,7 +27,10 @@ spec:
             - name: CLICKHOUSE_USER
               value: "admin"
             - name: CLICKHOUSE_PASSWORD
-              value: "CHANGE_ME_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  name: clickhouse-creds
+                  key: password
           livenessProbe:
             httpGet:
               path: /health
