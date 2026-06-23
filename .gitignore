@@ -1,0 +1,25 @@
+# Həssas
+*.key
+*.pem
+secrets/
+*-secret.yaml
+.env
+*.env
+
+# Terraform (state həssasdır!)
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform/
+.terraform.lock.hcl
+
+# Python
+__pycache__/
+*.pyc
+
+# Lokal/müvəqqəti
+*.log
+.DS_Store
+backend.hcl
+local/k3d/rpk
+*.terraform/
