@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: clickhouse
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/yamenmehdizade/sentinel-platform.git
+    targetRevision: main
+    path: platform/clickhouse
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: data
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

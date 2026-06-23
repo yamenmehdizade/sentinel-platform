@@ -1,0 +1,48 @@
+apiVersion: "clickhouse.altinity.com/v1"
+kind: "ClickHouseInstallation"
+metadata:
+  name: sentinel
+  namespace: data
+spec:
+  configuration:
+    clusters:
+      - name: main
+        layout:
+          shardsCount: 1
+          replicasCount: 1
+    users:
+      admin/password: CHANGE_ME_PASSWORD
+      admin/networks/ip:
+        - "0.0.0.0/0"
+      admin/profile: default
+  defaults:
+    templates:
+      podTemplate: ch-pod
+      dataVolumeClaimTemplate: ch-data
+  templates:
+    podTemplates:
+      - name: ch-pod
+        spec:
+          nodeSelector:
+            workload: data
+          tolerations:
+            - key: workload
+              value: data
+              effect: NoSchedule
+          containers:
+            - name: clickhouse
+              image: clickhouse/clickhouse-server:24.8
+              resources:
+                limits:
+                  memory: 2Gi
+                requests:
+                  memory: 1Gi
+    volumeClaimTemplates:
+      - name: ch-data
+        spec:
+          storageClassName: local-path
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
