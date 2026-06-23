@@ -11,7 +11,7 @@ spec:
           shardsCount: 1
           replicasCount: 1
     users:
-      admin/password: CHANGE_ME_PASSWORD
+      admin/password: Sentinel_Pass_2026
       admin/networks/ip:
         - "0.0.0.0/0"
       admin/profile: default
