@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: redpanda
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://charts.redpanda.com
+      chart: redpanda
+      targetRevision: 26.1.6
+      helm:
+        valueFiles:
+          - $values/local/k3d/redpanda-values.yaml
+    - repoURL: https://github.com/yamenmehdizade/sentinel-platform.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: redpanda
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
