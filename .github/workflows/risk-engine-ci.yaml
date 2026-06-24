@@ -1,0 +1,86 @@
+name: Risk Engine CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'risk-engine/**'
+      - '.github/workflows/risk-engine-ci.yaml'
+  workflow_dispatch:   # əl ilə də işə salmaq olar
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/risk-engine
+
+jobs:
+  security-and-build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write       # ghcr.io-ya push üçün
+      id-token: write        # cosign keyless sign üçün
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 1. Secret scan
+      - name: Gitleaks (secret scan)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 2. Python SAST
+      - name: Bandit (Python SAST)
+        run: |
+          pip install bandit
+          bandit -r risk-engine/ -ll || true
+        # -ll = yalnız orta+yüksək; || true = tapsa da pipeline davam etsin (demo)
+
+      # 3. Docker build
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image (load locally for scan)
+        uses: docker/build-push-action@v6
+        with:
+          context: risk-engine
+          load: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      # 4. Image CVE scan
+      - name: Trivy (image scan)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: '0'    # demo: tapsa da fail etmə (prod-da '1')
+
+      # 5. Push
+      - name: Push image
+        uses: docker/build-push-action@v6
+        with:
+          context: risk-engine
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+      # 6. Cosign sign (keyless)
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image (keyless)
+        run: |
+          cosign sign --yes \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }} || true
+        env:
+          COSIGN_EXPERIMENTAL: "1"
