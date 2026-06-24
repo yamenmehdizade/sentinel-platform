@@ -13,12 +13,28 @@ spec:
       labels:
         app: risk-engine
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
       containers:
         - name: risk-engine
-          image: ghcr.io/yamenmehdizade/risk-engine:latest
+          image: ghcr.io/yamenmehdizade/risk-engine:v2.0
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
           env:
             - name: CLICKHOUSE_HOST
               value: "clickhouse-sentinel.data.svc.cluster.local"
