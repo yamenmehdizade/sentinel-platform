@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
         - name: risk-engine
-          image: risk-engine:latest
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/yamenmehdizade/risk-engine:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
           env:
