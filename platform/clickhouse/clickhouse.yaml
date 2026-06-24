@@ -11,7 +11,11 @@ spec:
           shardsCount: 1
           replicasCount: 1
     users:
-      admin/password: Sentinel_Pass_2026
+      admin/password:
+        valueFrom:
+          secretKeyRef:
+            name: clickhouse-secret
+            key: password
       admin/networks/ip:
         - "0.0.0.0/0"
       admin/profile: default
