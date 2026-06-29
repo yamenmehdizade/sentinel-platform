@@ -66,6 +66,7 @@ jobs:
 
       # 5. Push
       - name: Push image
+        id: push
         uses: docker/build-push-action@v6
         with:
           context: risk-engine
