@@ -1,7 +1,8 @@
 import os
+import ipaddress
 from clickhouse_driver import Client
 from fastapi import FastAPI
-from contextlib import asynccontextmanager
+from fastapi.responses import PlainTextResponse
 
 # ---------- Hissə 1: ClickHouse ----------
 CLICKHOUSE_HOST = os.getenv("CLICKHOUSE_HOST", "localhost")
@@ -21,6 +22,16 @@ SUSPICIOUS_PORTS = {
     1433: 30, 3306: 30, 5432: 30, 22: 20,
 }
 UNKNOWN_APPS = {"incomplete", "insufficient-data", "unknown-tcp", "unknown-udp"}
+
+# Auto-remediation konfiqurasiyası
+BLOCK_THRESHOLD = int(os.getenv("BLOCK_THRESHOLD", "70"))   # bu baldan yuxarı bloklan
+EXCLUDE_PRIVATE = os.getenv("EXCLUDE_PRIVATE", "false").lower() == "true"  # daxili IP-ləri çıxar
+
+def is_private(ip):
+    try:
+        return ipaddress.ip_address(ip).is_private
+    except ValueError:
+        return False
 
 def calculate_risk_for_ip(src_ip, window_minutes=60):
     rows = ch.execute(f"""
@@ -60,8 +71,6 @@ def calculate_risk_for_ip(src_ip, window_minutes=60):
     }
 
 def get_all_alerts(window_minutes=60, min_score=40):
-    """Bütün şübhəli IP-ləri tapır (risk >= min_score)."""
-    # Əvvəlcə aktiv IP-ləri al
     ips = ch.execute(f"""
         SELECT DISTINCT src_ip FROM firewall_events
         WHERE event_time > now() - INTERVAL {window_minutes} MINUTE
@@ -73,8 +82,20 @@ def get_all_alerts(window_minutes=60, min_score=40):
             alerts.append(result)
     return sorted(alerts, key=lambda x: -x["risk_score"])
 
+def get_blocklist_ips(window_minutes=60):
+    """Bloklanacaq IP-lər: risk >= BLOCK_THRESHOLD, allowlist tətbiq olunur."""
+    alerts = get_all_alerts(window_minutes, min_score=BLOCK_THRESHOLD)
+    blocked = []
+    for a in alerts:
+        ip = a["src_ip"]
+        # Allowlist: daxili IP-ləri çıxar (konfiqurasiya edilə bilən)
+        if EXCLUDE_PRIVATE and is_private(ip):
+            continue
+        blocked.append(ip)
+    return blocked
+
 # ---------- Hissə 3: FastAPI ----------
-app = FastAPI(title="Sentinel Risk Engine", version="1.0")
+app = FastAPI(title="Sentinel Risk Engine", version="2.0")
 
 @app.get("/health")
 def health():
@@ -82,7 +103,6 @@ def health():
 
 @app.get("/risk/{src_ip}")
 def risk_for_ip(src_ip: str, window: int = 60):
-    """Bir IP-nin risk balı."""
     result = calculate_risk_for_ip(src_ip, window)
     if result is None:
         return {"error": "no data for this IP", "src_ip": src_ip}
@@ -90,5 +110,24 @@ def risk_for_ip(src_ip: str, window: int = 60):
 
 @app.get("/alerts")
 def alerts(window: int = 60, min_score: int = 40):
-    """Bütün şübhəli IP-lər."""
     return {"alerts": get_all_alerts(window, min_score)}
+
+@app.get("/blocklist", response_class=PlainTextResponse)
+def blocklist(window: int = 60):
+    """
+    Palo Alto External Dynamic List (EDL) formatı:
+    Hər sətirdə bir IP, sadə mətn. Palo Alto bu URL-i çəkir.
+    """
+    ips = get_blocklist_ips(window)
+    return "\n".join(ips) + "\n" if ips else "\n"
+
+@app.get("/blocklist/json")
+def blocklist_json(window: int = 60):
+    """Blocklist + səbəblər (Grafana/audit üçün)."""
+    alerts = get_all_alerts(window, min_score=BLOCK_THRESHOLD)
+    result = []
+    for a in alerts:
+        if EXCLUDE_PRIVATE and is_private(a["src_ip"]):
+            continue
+        result.append({"ip": a["src_ip"], "risk_score": a["risk_score"], "reasons": a["reasons"]})
+    return {"blocked": result, "count": len(result)}
