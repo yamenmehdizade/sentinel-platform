@@ -11,7 +11,8 @@ plugins:
 
 service:
   type: NodePort
-
+  nodePort: 30300
+  
 datasources:
   datasources.yaml:
     apiVersion: 1
