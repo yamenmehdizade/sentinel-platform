@@ -1,0 +1,42 @@
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: sentinel
+servers: 1
+agents: 2
+ports:
+  # Syslog — PA-3220 buraya göndərir (UDP loadbalancer-dən keçmir, birbaşa server node)
+  - port: 514:30514/udp
+    nodeFilters:
+      - server:0
+  # Grafana
+  - port: 3000:30300/tcp
+    nodeFilters:
+      - server:0
+  # ArgoCD
+  - port: 8090:30090/tcp
+    nodeFilters:
+      - server:0
+  # Risk Engine — PA EDL buradan çəkir (192.168.6.26:8000/blocklist)
+  - port: 8000:30800/tcp
+    nodeFilters:
+      - server:0
+  # Hubble UI
+  - port: 12000:30120/tcp
+    nodeFilters:
+      - server:0
+options:
+  k3s:
+    extraArgs:
+      - arg: --flannel-backend=none
+        nodeFilters:
+          - server:*
+      - arg: --disable-network-policy
+        nodeFilters:
+          - server:*
+      - arg: --disable=traefik
+        nodeFilters:
+          - server:*
+  k3d:
+    wait: true
+    timeout: "120s"

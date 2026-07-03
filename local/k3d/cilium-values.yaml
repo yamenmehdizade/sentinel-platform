@@ -1,0 +1,33 @@
+# Cilium values — k3d "sentinel" cluster üçün
+operator:
+  replicas: 1
+
+ipam:
+  mode: kubernetes
+
+kubeProxyReplacement: false
+
+hubble:
+  enabled: true
+  relay:
+    enabled: true
+  ui:
+    enabled: true
+    service:
+      type: NodePort
+      nodePort: 30120
+  metrics:
+    enabled:
+      - dns
+      - drop
+      - tcp
+      - flow
+      - port-distribution
+      - icmp
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    memory: 1Gi
