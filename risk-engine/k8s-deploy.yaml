@@ -60,8 +60,10 @@ metadata:
   name: risk-engine
   namespace: sentinel
 spec:
+  type: NodePort
   selector:
     app: risk-engine
   ports:
     - port: 8000
       targetPort: 8000
+      nodePort: 30800
