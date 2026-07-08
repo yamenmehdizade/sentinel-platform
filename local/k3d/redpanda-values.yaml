@@ -1,4 +1,13 @@
 statefulset:
+  startupProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 6
+    failureThreshold: 60
+  livenessProbe:
+    timeoutSeconds: 6
+  readinessProbe:
+    timeoutSeconds: 6
   replicas: 1
   podTemplate:
     spec:
