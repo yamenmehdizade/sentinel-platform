@@ -1,0 +1,60 @@
+# risk-engine-policy.yaml
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: risk-engine-policy
+  namespace: sentinel
+spec:
+  endpointSelector:
+    matchLabels:
+      app: risk-engine
+  ingress:
+    # PA EDL sorğusu (NodePort) + kubelet health probe
+    - fromEntities:
+        - host
+        - remote-node
+        - world
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+    # Grafana (istəsə metrics/API sorğusu üçün)
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: monitoring
+            app.kubernetes.io/name: grafana
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+  egress:
+    # DNS
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: ANY
+          rules:
+            dns:
+              - matchPattern: "*"
+    # ClickHouse native protokol
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: data
+            clickhouse.altinity.com/chi: sentinel
+      toPorts:
+        - ports:
+            - port: "9000"
+              protocol: TCP
+    # Redpanda consumer
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: redpanda
+            app.kubernetes.io/name: redpanda
+      toPorts:
+        - ports:
+            - port: "9093"
+              protocol: TCP
