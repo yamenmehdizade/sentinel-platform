@@ -1,0 +1,78 @@
+# redpanda-policy.yaml
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: redpanda-policy
+  namespace: redpanda
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: redpanda
+  ingress:
+    # Vector → Kafka
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: vector
+            app.kubernetes.io/name: vector
+      toPorts:
+        - ports:
+            - port: "9093"
+              protocol: TCP
+    # Risk Engine → Kafka (consumer)
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: sentinel
+            app: risk-engine
+      toPorts:
+        - ports:
+            - port: "9093"
+              protocol: TCP
+    # Broker-lərarası (single-node olsa da StatefulSet üçün lazımdır)
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: redpanda
+      toPorts:
+        - ports:
+            - port: "33145"
+              protocol: TCP
+            - port: "9093"
+              protocol: TCP
+            - port: "9644"
+              protocol: TCP
+    # Console → broker
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: console
+      toPorts:
+        - ports:
+            - port: "9093"
+              protocol: TCP
+            - port: "9644"
+              protocol: TCP
+            - port: "8081"
+              protocol: TCP
+    # Post-install configuration job → admin API
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: redpanda-configuration
+      toPorts:
+        - ports:
+            - port: "9644"
+              protocol: TCP
+  egress:
+    # DNS
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: ANY
+          rules:
+            dns:
+              - matchPattern: "*"
+    # Broker-lərarası egress
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: redpanda
