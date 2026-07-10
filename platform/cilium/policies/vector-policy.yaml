@@ -1,0 +1,58 @@
+# vector-policy.yaml
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: vector-policy
+  namespace: vector
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: vector
+  ingress:
+    # PA syslog — NodePort-dan gəlir (host/world entity kimi görünür)
+    - fromEntities:
+        - host
+        - remote-node
+        - world
+      toPorts:
+        - ports:
+            - port: "514"
+              protocol: UDP
+    # Health/readiness probe + Vector API (kubelet host-dan gəlir)
+    - fromEntities:
+        - host
+      toPorts:
+        - ports:
+            - port: "8686"
+              protocol: TCP
+  egress:
+    # DNS
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: ANY
+          rules:
+            dns:
+              - matchPattern: "*"
+    # Redpanda Kafka sink
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: redpanda
+            app.kubernetes.io/name: redpanda
+      toPorts:
+        - ports:
+            - port: "9093"
+              protocol: TCP
+    # ClickHouse sink (birbaşa HTTP)
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: data
+            clickhouse.altinity.com/chi: sentinel
+      toPorts:
+        - ports:
+            - port: "8123"
+              protocol: TCP
